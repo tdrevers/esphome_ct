@@ -1,6 +1,7 @@
 #include "esphome/components/fan/fan.h"
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
+#include <set>
 #include "esphome/core/gpio.h"
 
 namespace esphome {
