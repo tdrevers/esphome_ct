@@ -1,4 +1,6 @@
 #include "esphome/core/log.h"
+#include "esphome/core/preferences.h"
+#include "esphome/core/helpers.h"
 #include "fan.h"
 #include "IthoCC1101.h"
 
@@ -15,11 +17,21 @@ void ITHOcheck();
 //Ticker reset_timer_;
 int LastIDindex = 0;
 int OldLastIDindex = 0;
-long LastPublish=0; 
+long LastPublish=0;
 bool InitRunned = false;
 IthoPacket pkt;
 String LastID = "";
 bool timer_active_;
+
+// Persisted Itho message counter. The Itho box tracks the last counter it
+// received per remote/device id. Since our device id is fixed, a reboot
+// (e.g. after an OTA update) that resets the counter back to 0 makes the
+// box ignore our commands as stale, until a Join is sent to resync it.
+// Joining however requires the Itho box itself to be freshly power-cycled
+// and put into pairing mode, which isn't practical on every ESP reboot.
+// So instead we persist the counter across reboots.
+ESPPreferenceObject counter_pref;
+static const uint32_t ITHO_COUNTER_PREF_HASH = fnv1_hash("cc1101fan_itho_counter");
 
 // Timer values for hardware timer in Fan
 uint16_t Time1 = 10*60;
@@ -35,6 +47,18 @@ void CC1101Fan::setup() {
   }
 
   rf.init();
+
+  // Restore the last known Itho message counter from flash, so we keep
+  // counting up from where we left off instead of restarting at 0.
+  counter_pref = global_preferences->make_preference<uint8_t>(ITHO_COUNTER_PREF_HASH);
+  uint8_t saved_counter = 0;
+  if (counter_pref.load(&saved_counter)) {
+    rf.setCounter(saved_counter);
+    ESP_LOGD("cc1101_fan", "Restored Itho counter from flash: %d", saved_counter);
+  } else {
+    ESP_LOGD("cc1101_fan", "No stored Itho counter found, starting at 0");
+  }
+
   this->data_pin_->setup();
   this->data_pin_->pin_mode(gpio::FLAG_INPUT);
 //  ITHOticker.attach_ms(100, std::bind(&CC1101Fan::check_pin, this));
@@ -104,6 +128,11 @@ void CC1101Fan::loop() {
     }
 */
 
+}
+
+void CC1101Fan::persist_counter_() {
+  uint8_t c = rf.getLastCounter();
+  counter_pref.save(&c);
 }
 
 void CC1101Fan::publish_state() {
@@ -194,6 +223,7 @@ void CC1101Fan::set_fan_speed(uint8_t speed) {
         }
         break;
     }
+    persist_counter_();
     if (timer_active_) {
       timer_active_ = false;
       ESP_LOGD("cc1101_fan", "Timer was active and has been canceled (other manual command send by us)");
@@ -239,6 +269,7 @@ void CC1101Fan::send_other_command(uint8_t other_command) {
 
       break;
   }
+  persist_counter_();
 }
 
 void CC1101Fan::startResetTimer(uint16_t seconds) {

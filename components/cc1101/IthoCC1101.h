@@ -94,6 +94,7 @@ class IthoCC1101 : protected CC1101
 		void init() { CC1101::init(); }											//init,reset CC1101
 		void initReceive();
 		uint8_t getLastCounter() { return outIthoPacket.counter; }				//counter is increased before sending a command
+		void setCounter(uint8_t counter) { outIthoPacket.counter = counter; }		//restore a persisted counter value (e.g. after reboot) so we don't desync from the Itho box
 		void setSendTries(uint8_t sendTries) { this->sendTries = sendTries; }
 
 		//- deviceid should be a setting as well? random gen function? TODO

@@ -35,6 +35,7 @@ class CC1101Fan : public Component, public fan::Fan {
   void publish_state();
   void resetFanSpeed(uint16_t seconds);
   void startResetTimer(uint16_t seconds);
+  void persist_counter_();  // save the Itho message counter to flash so we survive a reboot without losing sync with the Itho box
   int speed_count_{};
   bool map_off_to_zero_{};
   //fan::FanTraits traits_;
