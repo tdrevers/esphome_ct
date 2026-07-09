@@ -1,3 +1,4 @@
+#include <set>
 #include "esphome/components/fan/fan.h"
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
@@ -7,14 +8,14 @@
 namespace esphome {
 namespace cc1101fan {
 
-class CC1101Fan : public PollingComponent, public fan::Fan {
+class CC1101Fan : public Component, public fan::Fan {
  public:
   GPIOPin *data_pin_;
 
-  CC1101Fan(int speed_count, bool map_off_to_zero) : speed_count_(speed_count), map_off_to_zero_(map_off_to_zero) {}
+  CC1101Fan(int speed_count, bool map_off_to_zero) : Component(), speed_count_(speed_count), map_off_to_zero_(map_off_to_zero) {}
   void set_data_pin(GPIOPin *data_pin) { data_pin_ = data_pin; }
   void setup() override;
-  void update() override;
+  void loop() override;
   void check_pin();
   void set_preset_modes(const std::set<std::string> &presets) { this->preset_modes_ = presets; }
   fan::FanTraits get_traits() override;
@@ -23,10 +24,14 @@ class CC1101Fan : public PollingComponent, public fan::Fan {
   void send_other_command(uint8_t other_command);
 //  static void ITHOinterrupt();
   void ITHOcheck();
+  bool timer_active_ = false;
+  bool reset_due_ = false;
+  uint16_t reset_seconds_ = 0;
+  uint32_t boot_time_ = 0;
+  bool radio_initialized_ = false;
 
  protected:
   void control(const fan::FanCall &call) override;
-  void write_state_();
   void publish_state();
   void resetFanSpeed(uint16_t seconds);
   void startResetTimer(uint16_t seconds);
